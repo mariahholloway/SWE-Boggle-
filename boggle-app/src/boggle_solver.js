@@ -5,151 +5,165 @@
  * @param {string[]} dictionary - The list of available words.
  * @returns {string[]} solutions - Possible solutions to the Boggle board.
  */
+// help recieved from Professor Burge In lecture 
+// Errors were fixed with lint however it wont pass all test cases in codio anymore but compiles succesfully
 
 
- exports.findAllSolutions = function(grid, dictionary) {
+exports.findAllSolutions = function(grid, dictionary) {
   let solutions = [];
 
-  // 1. Check inputs params are valid 
-  // 1a. Check for any empty input
-  if(grid == null || dictionary == null)
+  // 1. Check inputs Params are valid (return [] if incorrect)
+
+  // 1a. Check if any empty input
+  if (grid == null || dictionary == null){
     return solutions;
-   
+  }
   // 1b. Check if NXN
+
   let N = grid.length;
-  for(let i = 0; i <N; i++){
-    if(grid[i].length != N){
-      
+  for (let i = 0; i < N; i++) {
+    if (grid[i].length != N ) {
       return solutions;
     }
   }
-   
-   // Convert input data into the same case
-  lowerCaseConvert(grid, dictionary);
-   
-   
-   // Check if Grid is valid
-   if(!isValidGrid(grid)){
-//        console.log('Test' + grid);
-     return solutions;
-   }
-   
-   
-   
-   // Set up data structures (visited, solutions, dictionary, Trie, hash, list, set)
-  
+  // Convert input data into the same case
+
+  convertCaseToLower(grid, dictionary);
+
+  // Check if Grid is valid
+  if (!isGridValid(grid)) {
+    return solutions;
+  }
+
+
+  // Setup all data structures(i.e. Visited, solutions, dictionary (Trie|Hash|List|Set|)
+
   let solutionSet = new Set();
+
   let hash = createHashMap(dictionary);
-   
-   // Iterate over the NxN grid
-   
-  for(let y = 0; y < N; y++){
-    for(let x = 0; x < N; x++){
+
+  // Iterate over the NxN grid - find all words that begin with grid[y][x]
+
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
       let word = "";
-      
       let visited = new Array(N).fill(false).map(() => new Array(N).fill(false));
-      
       findWords(word, y, x, grid, visited, hash, solutionSet);
     }
   }
-  
+
   solutions = Array.from(solutionSet);
   return solutions;
 }
+findWords = function(word, y, x, grid, visited, hash, solutionSet) {
+  let adjMatrix = [[-1, -1],
+    [-1, 0],
+    [-1, 1],
+    [0, 1],
+    [1, 1],
+    [1, 0],
+    [1, -1],
+    [0, -1]];
 
-  findWords = function(word, y, x, grid, visited, hash, solutionSet){
-    
-    let adjMatrix = [[-1, -1],
-                    [-1, 0],
-                    [-1, 1],
-                    [0, 1],
-                    [1, 1],
-                    [1, 0],
-                    [1, -1],
-                    [0, -1]];
-    
-    if (y < 0 || x < 0 || y >= grid.length || x >= grid.length || visited[y][x] == true)
-      return;
-    
+  // Base Case:
+  // b1:  y and x are out of bounds
+  // b2:  already visited y and x
+  //  -->    then return immediately
+
+  if (y < 0 || x < 0 || y >= grid.length || x >= grid.length || visited[y][x] == true) {
+    return;
+// Append grid[y][x] to the word
+
     word += grid[y][x];
-    
-//     console.log("Current Word = " + word + "\nGrid[" + y + "][" + x + "] = " + grid[x][y]);
-    
-    if(isPrefix(word, hash)) {
-      visited[y][x] = true;
-      
-      if(isWord(word, hash)) {
-        if(word.length >= 3)
-          solutionSet.add(word);
-      }
-      
-     for(let i = 0; i < 8; i++){
-       findWords(word, y + adjMatrix[i][0], x + adjMatrix[i][1], grid, visited, hash, solutionSet)
-        }
-    }
-    
-    visited[y][x] = false;
   }
-  
-  isPrefix = function(word, hash) {
-    return hash[word] != undefined;
+  // 1. Is that new word a prefix for any word in the trie/hash
 
-  }
+  if (isPrefixOrWord(word, hash)) {
+  // 1a. Is that prefix an actual word in the dictionary (trie), mark as visited
+    visited[y][x] = true;
 
-  isWord = function(word, hash) {
-    return hash[word] == 1;
-  }
-
-  createHashMap = function(dictionary){
-    var dict = {};
-    for(let i = 0; i < dictionary.length; i++){
-      dict[dictionary[i]] = 1;
-      let wordlength = dictionary[i].length;
-      var str = dictionary[i];
-      for(let j = wordlength; wordlength > 1; wordlength--){
-        str = str.substr(0,wordlength-1);
-        if(str in dict){
-          if(str == 1){
-            dict[str] = 1;
-          }
-        }
-        else{
-          dict[str] = 0;
-        }
+    if (isWord(word, hash)) {
+      if (word.length >= 3) { 
+        solutionSet.add(word);
       }
     }
-    return dict;
-  }
-  
-  lowerCaseConvert = function(grid, dict){
-    for(let i = 0; i < grid.length; i++){
-      for(let j = 0; j < grid[i].length; j++){
-        grid[i][j] = grid[i][j].toLowerCase();
-      }
-    }
-    
-    for(let i = 0; i < dict.length; i++){
-      dict[i] = dict[i].toLowerCase();
+
+
+    // 2.  keep searching using the adjacent tiles --> Call findWord()
+
+    for (let i = 0; i < 8; i++) {
+      findWords(word, y + adjMatrix[i][0], x + adjMatrix[i][1], grid, visited, hash, solutionSet);
     }
   }
 
-  isValidGrid = function(grid){
-    regex = /(st|qu)|[a-prt-z]/;
-    for(let i = 0; i < grid.length; i++){
-      for(let j = 0; j < grid[i].length; j++){
-        if(!grid[i][j].match(regex)){
-          return false;
+  // 3. If not a prefix then unmark location y, x as visited
+  visited[y][x] = false;
+};
+
+isPrefixOrWord = function(word, hash) {
+  return hash[word] != undefined;
+};
+
+
+isWord = function(word, hash) {
+  return hash[word] == 1;
+};
+
+createHashMap = function(dictionary) {
+  var dict = {};
+  for (let i = 0; i < dictionary.length; i++) {
+    dict[dictionary[i]]= 1;
+    let wordlength = dictionary[i].length;
+    var str = dictionary[i];
+    for (let j = wordlength; wordlength > 1; wordlength--) {
+      str = str.substr(0, wordlength-1);
+      if (str in dict) {
+        if (str == 1 ) {
+          dict[str]= 1;
         }
       }
+      else {
+        dict[str]= 0;
+      }
     }
-    return true;
+  }
+  return dict;
+};
+
+convertCaseToLower = function(grid, dict) {
+  for (let i = 0; i < grid.length; i++) {
+    for ( let j = 0; j < grid[i].length; j++) {
+          grid[i][j] = grid[i][j].toLowerCase();
+    }
   }
 
+  for (let i = 0; i < dict.length; i++) {
+    dict[i] = dict[i].toLowerCase();
+  }
+};
 
-var grid = [['t', 'w', 'y', 'r'],
-              ['e', 'n', 'p', 'h'],
-              ['g', 'z', 'qu', 'r'],
-              ['o', 'n', 't', 'a']];
+isGridValid = function(grid) {
+  regex = /(st|qu)|[a-prt-z]/;
+  for (let i = 0; i < grid.length; i++) {
+    for ( let j = 0; j < grid[i].length; j++) {
+      if (!grid[i][j].match(regex)) {
+        return false;
+      }
+    }
+  }
+  return true;
+};
+
+/*
+const grid = [['St', 'R', 'T'],['O', 'T', 'Qu'],['A', 'A', 'T']];
+      const dictionary = ['strt', 'to','so', 'at','aat', 'quat'];
+*/
+var grid = [['T', 'W', 'Y', 'R'],
+  ['E', 'N', 'P', 'H'],
+  ['G', 'Z', 'Qu', 'R'],
+  ['St', 'N', 'T', 'A']];
 var dictionary = ['art', 'ego', 'gent', 'get', 'net', 'new', 'newt', 'prat',
-                    'pry', 'qua', 'quart', 'quartz', 'rat', 'tar', 'tarp',
-                    'ten', 'went', 'wet', 'arty', 'egg', 'not', 'quar'];
+  'pry', 'qua', 'quart', 'quartz', 'rat', 'tar', 'tarp',
+  'ten', 'went', 'wet', 'arty', 'egg', 'not', 'quar'];
+
+console.log(exports.findAllSolutions(grid, dictionary));
